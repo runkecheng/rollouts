@@ -1,14 +1,14 @@
 name: Shouqianba Release
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types:
+      - created
 
 env:
   GOLANGCI_VERSION: 'v1.52'
 
 jobs:
-  publish-artifacts:
+  publish-image:
     if: github.repository == 'lujiajing1126/rollouts'
     runs-on: ubuntu-latest
     permissions:
@@ -48,3 +48,48 @@ jobs:
             ghcr.io/lujiajing1126/rollouts:${{ github.event.release.tag_name }}
           platforms: linux/amd64
           labels: ${{ steps.meta.outputs.labels }}
+
+  publish-artifacts:
+    permissions:
+      contents: write
+    name: Upload CRD
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Get release
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Combine CRD YAML files
+        run: |
+          mkdir -p combined_crd
+          cat config/crd/bases/*.yaml > combined_crd/combined_crd.yaml
+          mkdir -p kustomize
+          touch kustomize/deploy.yaml
+      - name: Upload CRD
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: combined_crd/combined_crd.yaml
+          asset_name: crd.yaml
+          asset_content_type: application/yaml
+      - name: 'Kustomize Build'
+        uses: karancode/kustomize-github-action@master
+        with:
+          kustomize_version: '5.4.3'
+          kustomize_build_dir: 'config/release-rbac'
+          kustomize_output_file: "kustomize/rbac.yaml"
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload rbac.yaml
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release.outputs.upload_url }}
+          asset_path: kustomize/rbac.yaml
+          asset_name: rbac.yaml
+          asset_content_type: application/yaml
