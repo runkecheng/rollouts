@@ -48,3 +48,33 @@ jobs:
             ghcr.io/lujiajing1126/rollouts:${{ github.event.release.tag_name }}
           platforms: linux/amd64
           labels: ${{ steps.meta.outputs.labels }}
+
+  publish-artifacts:
+    permissions:
+      contents: write
+    name: Upload YAMLs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Get release
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate CRD
+        run: |
+          make manifests
+      - name: Generate RBAC
+        uses: karancode/kustomize-github-action@master
+        with:
+          kustomize_version: '5.4.3'
+          kustomize_build_dir: 'config/rbac'
+          kustomize_output_file: "dist/rbac.yaml"
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload rbac.yaml
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/rbac.yaml
+            config/crd/bases/*.yaml
