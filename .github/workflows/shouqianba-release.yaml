@@ -58,6 +58,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache-dependency-path: |
+            go.sum
+            api/go.sum
       - name: Get release
         id: get_release
         uses: bruceadams/get-release@v1.3.2
