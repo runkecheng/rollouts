@@ -132,7 +132,7 @@ CONTROLLER_GEN_VERSION ?= v0.11.0
 KUSTOMIZE_VERSION ?= v4.5.5
 GINKGO_VERSION ?= v1.16.4
 HELM_VERSION ?= v3.14.0
-CODEGENERATOR_VERSION ?= v0.24.1
+CODEGENERATOR_VERSION ?= v0.26.3
 
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_GEN_VERSION)
 KUSTOMIZE = $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
@@ -145,7 +145,7 @@ INFORMER_GEN = $(LOCALBIN)/informer-gen-$(CODEGENERATOR_VERSION)
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
 $(CONTROLLER_GEN): $(LOCALBIN)
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_GEN_VERSION))
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
