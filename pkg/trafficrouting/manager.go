@@ -62,7 +62,8 @@ type TrafficRoutingContext struct {
 	// won't work for Ingress and Gateway
 	DisableGenerateCanaryService bool
 	// recheck time
-	RecheckDuration time.Duration
+	RecheckDuration         time.Duration
+	CanaryServiceOperations *v1beta1.CanaryServiceOperations
 }
 
 // Manager responsible for adjusting network resources
@@ -442,6 +443,14 @@ func (m *Manager) createCanaryService(c *TrafficRoutingContext, cService string,
 	canaryService.Spec.IPFamilies = nil
 	canaryService.Spec.LoadBalancerIP = ""
 	canaryService.Spec.Selector[c.RevisionLabelKey] = c.CanaryRevision
+	if c.CanaryServiceOperations != nil {
+		for k, v := range c.CanaryServiceOperations.Add {
+			canaryService.Spec.Selector[k] = v
+		}
+		for _, k := range c.CanaryServiceOperations.Remove {
+			delete(canaryService.Spec.Selector, k)
+		}
+	}
 
 	// avoid port conflicts for NodePort-type service
 	for i := range canaryService.Spec.Ports {

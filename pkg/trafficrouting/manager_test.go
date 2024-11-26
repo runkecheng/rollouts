@@ -1579,6 +1579,80 @@ func TestRouteAllTrafficToNewVersion(t *testing.T) {
 	}
 }
 
+func TestCreateCanaryService(t *testing.T) {
+	cases := []struct {
+		name       string
+		getObj     func() []*corev1.Service
+		getRollout func() (*v1beta1.Rollout, *util.Workload)
+		expectObj  func() []*corev1.Service
+	}{
+		{
+			getObj: func() []*corev1.Service {
+				s1 := demoService.DeepCopy()
+				s1.Name = "echoserver"
+				s1.Spec.Selector[apps.DefaultDeploymentUniqueLabelKey] = "podtemplatehash-v1"
+				return []*corev1.Service{s1}
+			},
+			getRollout: func() (*v1beta1.Rollout, *util.Workload) {
+				obj := demoRollout.DeepCopy()
+				obj.Status.CanaryStatus.CurrentStepState = v1beta1.CanaryStepStateCompleted
+				obj.Status.CanaryStatus.CurrentStepIndex = 4
+				obj.Status.CanaryStatus.LastUpdateTime = &metav1.Time{Time: time.Now().Add(-time.Hour)}
+				obj.Spec.Strategy.Canary.CanaryServiceOperations = &v1beta1.CanaryServiceOperations{
+					Add: map[string]string{
+						"version": "canary",
+					},
+				}
+				return obj, &util.Workload{RevisionLabelKey: apps.DefaultDeploymentUniqueLabelKey}
+			},
+			expectObj: func() []*corev1.Service {
+				// service and ingress remain unchanged
+				s1 := demoService.DeepCopy()
+				s1.Name = "echoserver"
+				s1.Spec.Selector[apps.DefaultDeploymentUniqueLabelKey] = "podtemplatehash-v1"
+				s2 := demoService.DeepCopy()
+				s2.Name = "echoserver-canary"
+				s2.Spec.Selector[apps.DefaultDeploymentUniqueLabelKey] = "podtemplatehash-v2"
+				s2.Spec.Selector["version"] = "canary"
+				return []*corev1.Service{s1, s2}
+			},
+		},
+	}
+	for _, cs := range cases {
+		t.Run(cs.name, func(t *testing.T) {
+			ss := cs.getObj()
+			cli := fake.NewClientBuilder().WithScheme(scheme).WithObjects(demoIngress.DeepCopy(), ss[0], demoConf.DeepCopy()).Build()
+			rollout, workload := cs.getRollout()
+			newStatus := rollout.Status.DeepCopy()
+			currentStep := rollout.Spec.Strategy.Canary.Steps[newStatus.CanaryStatus.CurrentStepIndex-1]
+			c := &TrafficRoutingContext{
+				Key:                     fmt.Sprintf("Rollout(%s/%s)", rollout.Namespace, rollout.Name),
+				Namespace:               rollout.Namespace,
+				ObjectRef:               rollout.Spec.Strategy.Canary.TrafficRoutings,
+				Strategy:                currentStep.TrafficRoutingStrategy,
+				OwnerRef:                *metav1.NewControllerRef(rollout, v1beta1.SchemeGroupVersion.WithKind("Rollout")),
+				RevisionLabelKey:        workload.RevisionLabelKey,
+				StableRevision:          newStatus.CanaryStatus.StableRevision,
+				CanaryRevision:          newStatus.CanaryStatus.PodTemplateHash,
+				LastUpdateTime:          newStatus.CanaryStatus.LastUpdateTime,
+				OnlyTrafficRouting:      false,
+				CanaryServiceOperations: rollout.Spec.Strategy.Canary.CanaryServiceOperations,
+			}
+			manager := NewTrafficRoutingManager(cli)
+			if err := manager.InitializeTrafficRouting(c); err != nil {
+				t.Fatalf("InitializeTrafficRouting failed: %s", err)
+			}
+			if _, err := manager.DoTrafficRouting(c); err != nil {
+				t.Fatalf("DoTrafficRouting failed: %s", err)
+			}
+			ss = cs.expectObj()
+			for _, obj := range ss {
+				checkObjEqual(cli, t, obj)
+			}
+		})
+	}
+}
+
 func checkNotFound(c client.WithWatch, t *testing.T, expect client.Object) {
 	gvk := expect.GetObjectKind().GroupVersionKind()
 	obj := getEmptyObject(gvk)

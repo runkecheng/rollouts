@@ -611,5 +611,6 @@ func newTrafficRoutingContext(c *RolloutContext) *trafficrouting.TrafficRoutingC
 		CanaryRevision:               c.NewStatus.GetSubStatus().PodTemplateHash,
 		LastUpdateTime:               c.NewStatus.GetSubStatus().LastUpdateTime,
 		DisableGenerateCanaryService: c.Rollout.Spec.Strategy.DisableGenerateCanaryService(),
+		CanaryServiceOperations:      c.Rollout.Spec.Strategy.Canary.CanaryServiceOperations,
 	}
 }

@@ -215,6 +215,8 @@ type CanaryStrategy struct {
 	TrafficRoutingRef string `json:"trafficRoutingRef,omitempty"`
 	// canary service will not be generated if DisableGenerateCanaryService is true
 	DisableGenerateCanaryService bool `json:"disableGenerateCanaryService,omitempty"`
+	// CanaryServiceOperations represents a patch operation specifically designed to update the "selector" field of a service
+	CanaryServiceOperations *CanaryServiceOperations `json:"canaryServiceOperations,omitempty"`
 }
 
 type PatchPodTemplateMetadata struct {
@@ -222,6 +224,11 @@ type PatchPodTemplateMetadata struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 	// labels
 	Labels map[string]string `json:"labels,omitempty"`
+}
+
+type CanaryServiceOperations struct {
+	Add    map[string]string `json:"add,omitempty"`
+	Remove []string          `json:"remove,omitempty"`
 }
 
 // CanaryStep defines a step of a canary workload.
